@@ -7,20 +7,6 @@
   flex-direction: column;
   position: relative;
 
-  .scroll-to-bottom {
-    position: absolute;
-    bottom: 94px;
-    right: 64px;
-    height: 35px;
-    width: 35px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: #0000ff9c;
-    cursor: pointer;
-  }
-
   .messages-list {
     height: 90%;
     padding-left: 0;
@@ -61,15 +47,62 @@
     }
   }
 
+  .scroll-to-bottom {
+    position: absolute;
+    bottom: 94px;
+    right: 64px;
+    height: 35px;
+    width: 35px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #0000ff9c;
+    cursor: pointer;
+  }
+
   .input-block {
     margin-top: auto;
     display: flex;
+    align-items: center;
     margin-top: auto;
     padding-top: 12px;
     border-top: 1px solid rgb(199, 198, 198);
 
     button {
-      margin-left: 12px;
+      margin-right: 8px;
+      border: none;
     }
+  }
+}
+
+.show-typing {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  margin-left: 12px;
+}
+
+.drag {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  background-color: darkslateblue;
+  color: #ffffff;
+  opacity: 0;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 10px;
+  z-index: -1;
+  transition: opacity 0.2s ease-in-out;
+  
+  &--active {
+    z-index: 1000;
+    opacity: .9
   }
 }

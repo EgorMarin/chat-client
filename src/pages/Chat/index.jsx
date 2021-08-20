@@ -1,17 +1,21 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Input, Button } from 'antd'
+import { Input } from 'antd'
 import { debounce } from 'lodash'
 import io from "socket.io-client";
+import classnames from 'classnames'
 import axios from 'axios';
 
 import { apiUrl } from '../../utils/constants';
 import Message from './components/Message';
 import ScrollToBottom from './components/ScrollToBottom';
+import UploadComponent from './components/UploadComponent';
 
 import './styles.scss'
 
 const SERVER_URL = 'http://localhost:3001'
+
+let timeout;
 
 const Chat = () => {
   const [messages, setMessages] = useState([])
@@ -19,6 +23,9 @@ const Chat = () => {
   const [query, setQuery] = useState({ page: 1 })
   const [lastSeenMsg, setLastSeenMsg] = useState(null)
   const [unreadMsgsCount, setUnreadMsgsCount] = useState(0)
+  const [isMeTyping, setIsMeTyping] = useState(false)
+  const [isShowTyping, setIsShowTyping] = useState(false)
+  const [isDragActive, setIsDragActive] = useState(false)
   const { id: chatId, user } = useParams()
   const socketRef = useRef()
   const listRef = useRef()
@@ -49,12 +56,38 @@ const Chat = () => {
     socketRef.current = io(SERVER_URL);
     socketRef.current.emit('join', { chatId, user });
     socketRef.current.on('message', onReceiveMessage)
+    socketRef.current.on('showTyping', onShowTyping)
+
+    const InputElem = document.querySelector('.input-elem')
+    InputElem.focus()
+
+    const chatElem = document.querySelector('.chat')
+    chatElem.addEventListener('dragenter', onDragEnter)
+    chatElem.addEventListener('dragleave', onDragLeave)
+
+    return () => {
+      chatElem.removeEventListener('dragenter', onDragEnter)
+      chatElem.removeEventListener('dragleave', onDragLeave)
+    }
   }, [])
 
-  const onChangeText = (e) => setText(e.target.value)
+  const onTyping = (e) =>  {
+    setText(e.target.value)
+    
+    clearTimeout(timeout)
+    timeout = setTimeout(stopTyping, 1000)
 
-  const onSendMessage = () => {
-    if (!text.trim()) {
+    if (!isMeTyping) {
+      setIsMeTyping(true)
+      socketRef.current.emit('typing', { chatId, bool: true });
+    }
+  }
+
+  const onSendMessage = (e) => {
+    const isEnterClicked = e.keyCode === 13
+    const isMsgEmpty = !text.trim()
+
+    if (!isEnterClicked || isMsgEmpty) {
       return;
     }
 
@@ -62,6 +95,10 @@ const Chat = () => {
       id: messages[messages.length - 1].id + 1,
       text,
       sender: user,
+    }
+
+    if (isMeTyping) {
+      socketRef.current.emit('typing', { chatId, bool: false });
     }
 
     socketRef.current.emit('sendMessage', { chatId, msg })
@@ -72,14 +109,13 @@ const Chat = () => {
     const scrollTop = e.target.scrollTop;
     const visibleHeight = e.target.clientHeight;
     const containerHeight = e.target.scrollHeight;
-
-    console.log(scrollTop, visibleHeight, containerHeight);
+    const littleOffset = 30;
 
     if (scrollTop === 0) {
       setQuery(({ page }) => ({ page: page + 1 }))
     }
 
-    if (scrollTop + visibleHeight + 30 >= containerHeight) {
+    if (scrollTop + visibleHeight + littleOffset >= containerHeight) {
       setUnreadMsgsCount(null)
     }
   }, 100)
@@ -98,15 +134,49 @@ const Chat = () => {
     }
   }
 
+  function stopTyping() {
+    setIsMeTyping(false)
+    socketRef.current.emit('typing', { chatId, bool: false });
+  }
+
+  function onShowTyping(bool) {
+    setIsShowTyping(bool)
+  }
+
   function scrollToBottom(behavior = 'auto') {
     listBottomRef.current?.scrollIntoView({ behavior })
   }
 
+  let lastActiveElem;
+
+  function onDragEnter(e) {
+    lastActiveElem = e.target;
+    setIsDragActive(true)
+  }
+
+  function onDragLeave(e) {
+    if (e.target === lastActiveElem) {
+      setIsDragActive(false)
+    }
+  }
+  
   return (
     <div className="container">
       <div className="header">Selected Chat</div>
+      {isShowTyping && <div className="show-typing">User is typing ...</div>}
       <div className="chat">
-        <ul onScroll={onScrollMessages} ref={listRef} className="messages-list">
+        {/* {isDragActive && ( */}
+          <div className={classnames("drag", isDragActive && "drag--active")}>
+            <div className="drag-active__text">
+              Drop it here
+            </div>
+          </div>
+        {/* )} */}
+        <ul 
+          ref={listRef} 
+          onScroll={onScrollMessages} 
+          className="messages-list"
+        >
           {messages.map(message => (
             <Message 
               {...message} 
@@ -115,12 +185,19 @@ const Chat = () => {
               lastSeenMsgRef={lastSeenMsgRef}  
             />
           ))}
-          {unreadMsgsCount && <ScrollToBottom count={unreadMsgsCount} scrollToBottom={scrollToBottom} />}
+          {unreadMsgsCount && (
+            <ScrollToBottom count={unreadMsgsCount} scrollToBottom={scrollToBottom} />
+          )}
           <div ref={listBottomRef} />
         </ul>
         <div className="input-block">
-          <Input value={text} onChange={onChangeText} />
-          <Button onClick={onSendMessage}>Send</Button>
+          <UploadComponent />
+          <Input 
+            value={text} 
+            onChange={onTyping} 
+            onKeyUp={onSendMessage} 
+            className="input-elem"
+          />
         </div>
       </div>
     </div>
