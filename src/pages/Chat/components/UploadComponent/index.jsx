@@ -13,7 +13,7 @@ const validMimeTypes = [
 ]
 
 const props = {
-  action: `${apiUrl}/upload`,
+  action: `${apiUrl}/media/upload`,
   multiple: true,
   showUploadList: false,
   beforeUpload: file => {
